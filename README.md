@@ -49,11 +49,15 @@ Users can:
 - Or upload a CSV with required columns  
 
 ### **2. Model Training**
+Models used:
+- Logistic regression
+- Random forest
+
 The app displays:
 - Train/validation split  
 - Accuracy, Precision, Recall, F1-score, ROC-AUC  
 - Confusion matrix  
-- Plain-language interpretation  
+- One-sentence interpretation  
 
 ### **3. Prediction & Explanation**
 For a patient’s input, the app shows:
@@ -64,6 +68,21 @@ For a patient’s input, the app shows:
 Displayed clearly:
 
 > **For education only. Not a medical device. Do not use for clinical decisions.**
+
+Dataset
+
+The project uses a common educational **stroke prediction tabular dataset**, including:
+- Age  
+- Sex  
+- BMI  
+- BP values  
+- Cholesterol levels  
+- Glucose  
+- Smoking status  
+- Physical activity  
+- BP medication status  
+
+All preprocessing steps are in `notebooks/training.ipynb`.
 
 
 ##  Installation
