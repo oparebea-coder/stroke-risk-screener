@@ -5,6 +5,7 @@ import os
 import numpy as np
 import sys, __main__  
 
+st.title("Stroke Risk Screener-App Loaded")
 # ── Define polynomial helper for unpickling ─────────────────────────────────
 def add_poly(X_array):
     age         = X_array[:, 0]
