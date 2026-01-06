@@ -17,11 +17,15 @@ st.set_page_config(
 # -------------------------------------------------
 # LOAD MODEL & SCALER (CACHED)
 # -------------------------------------------------
+
+BASE_DIR = Path(__file__).parent
+
 @st.cache_resource
 def load_artifacts():
-    model = joblib.load("model.pkl")
-    scaler = joblib.load("stroke_scaler.joblib")
+    model = joblib.load(BASE_DIR / "model.pkl")
+    scaler = joblib.load(BASE_DIR / "stroke_scaler.joblib")
     return model, scaler
+
 
 model, scaler = load_artifacts()
 
