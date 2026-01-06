@@ -1,168 +1,144 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 import joblib
+import base64
 from pathlib import Path
+from gtts import gTTS
 
-# --------------------------------------------------
-# Page config (UNCHANGED)
-# --------------------------------------------------
+# -------------------------------------------------
+# PAGE CONFIG
+# -------------------------------------------------
 st.set_page_config(
-    page_title="Stroke Risk Prediction",
+    page_title="Stroke Risk Assessment Tool",
     layout="wide"
 )
 
-# --------------------------------------------------
-# Paths
-# --------------------------------------------------
-BASE_DIR = Path(__file__).parent
-MODEL_PATH = BASE_DIR / "model.pkl"
-SCALER_PATH = BASE_DIR / "stroke_scaler.joblib"
-IMAGE_DIR = BASE_DIR / "images"
-
-# --------------------------------------------------
-# Load model and scaler (FIXED)
-# --------------------------------------------------
+# -------------------------------------------------
+# LOAD MODEL & SCALER (CACHED)
+# -------------------------------------------------
 @st.cache_resource
 def load_artifacts():
-    model = joblib.load(MODEL_PATH)
-    scaler = joblib.load(SCALER_PATH)
+    model = joblib.load("model.pkl")
+    scaler = joblib.load("stroke_scaler.joblib")
     return model, scaler
 
 model, scaler = load_artifacts()
 
-# --------------------------------------------------
-# Feature engineering (MATCHES TRAINING)
-# --------------------------------------------------
-def engineer_features(age, glucose):
-    age_sq = age ** 2
-    glucose_sq = glucose ** 2
-    age_glucose = age * glucose
-    return age_sq, glucose_sq, age_glucose
+# -------------------------------------------------
+# IMAGE LOADER
+# -------------------------------------------------
+BASE_DIR = Path(__file__).parent
 
-# --------------------------------------------------
-# ====== YOUR EXISTING STYLING (UNCHANGED) ======
-# --------------------------------------------------
+def load_image_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+hero1 = load_image_base64(BASE_DIR / "images/strokeprediction.png")
+hero2 = load_image_base64(BASE_DIR / "images/image2.png")
+hero3 = load_image_base64(BASE_DIR / "images/image3.png")
+
+# -------------------------------------------------
+# STYLING (UNCHANGED LOOK)
+# -------------------------------------------------
 st.markdown("""
 <style>
-body { background-color: #0e0e0e; color: #f5f5f5; }
-h1, h2, h3 { color: #ff5c8a; }
-.stButton>button {
-    background-color:#ff5c8a;
-    color:white;
-    border-radius:8px;
-    font-size:16px;
+body { background-color: #0e0e0e; color: white; }
+h1,h2,h3,h4 { color: #ff69b4; }
+.card {
+    background: #111;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
 }
-.stButton>button:hover { background-color:#e14c77; }
+button {
+    background-color: #ff69b4 !important;
+    color: black !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------------------------
-# Header (UNCHANGED)
-# --------------------------------------------------
+# -------------------------------------------------
+# HEADER
+# -------------------------------------------------
 st.markdown("""
-<div style="background-color:#1c1c1c;padding:25px;border-radius:12px;">
+<div class="card" style="text-align:center;">
 <h1>🧠 Stroke Risk Assessment Tool</h1>
 <p>Empowering you to take control of your brain health</p>
 </div>
 """, unsafe_allow_html=True)
 
-st.write("")
+# -------------------------------------------------
+# HERO SLIDESHOW
+# -------------------------------------------------
+st.markdown(f"""
+<div style="display:flex; gap:10px;">
+<img src="data:image/png;base64,{hero1}" width="33%">
+<img src="data:image/png;base64,{hero2}" width="33%">
+<img src="data:image/png;base64,{hero3}" width="33%">
+</div>
+""", unsafe_allow_html=True)
 
-# --------------------------------------------------
-# Images (UNCHANGED)
-# --------------------------------------------------
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.image(IMAGE_DIR / "strokeprediction.png", use_container_width=True)
-with c2:
-    st.image(IMAGE_DIR / "image2.png", use_container_width=True)
-with c3:
-    st.image(IMAGE_DIR / "image3.png", use_container_width=True)
-
-st.write("---")
-
-# --------------------------------------------------
-# Risk Assessment Form
-# --------------------------------------------------
-st.markdown("## 📝 Risk Assessment")
+# -------------------------------------------------
+# RISK ASSESSMENT FORM
+# -------------------------------------------------
+st.markdown("## 📝 Stroke Risk Assessment")
 
 with st.form("risk_form"):
     col1, col2 = st.columns(2)
 
     with col1:
-        age = st.number_input("Age", 1, 120, 45)
+        age = st.number_input("Age", 1, 120)
         hypertension = st.selectbox("Hypertension", [0, 1])
         heart_disease = st.selectbox("Heart Disease", [0, 1])
-        avg_glucose = st.number_input("Average Glucose Level", value=100.0)
+        avg_glucose = st.number_input("Average Glucose Level", 50.0, 300.0)
 
     with col2:
-        bmi = st.number_input("BMI", value=25.0)
-        smoking_status = st.selectbox(
-            "Smoking Status",
-            ["never smoked", "formerly smoked", "smokes"]
-        )
-        gender = st.selectbox("Gender", ["Male", "Female"])
+        bmi = st.number_input("BMI", 10.0, 60.0)
+        smoking = st.selectbox("Smoking Status", [0, 1])
 
-    predict_btn = st.form_submit_button("Predict Stroke Risk")
+    submit = st.form_submit_button("Predict Stroke Risk")
 
-# --------------------------------------------------
-# Prediction + IMMEDIATE RESULTS (FIXED)
-# --------------------------------------------------
-if predict_btn:
-    # Encode categoricals
-    gender_encoded = 1 if gender == "Male" else 0
-    smoking_map = {
-        "never smoked": 0,
-        "formerly smoked": 1,
-        "smokes": 2
-    }
-    smoking_encoded = smoking_map[smoking_status]
+# -------------------------------------------------
+# PREDICTION + RESULT (IMMEDIATE)
+# -------------------------------------------------
+if submit:
+    # EXACT FEATURE ORDER USED DURING TRAINING
+    X = np.array([[age, avg_glucose, bmi, hypertension, heart_disease, smoking]])
 
-    # Feature engineering
-    age_sq, glucose_sq, age_glucose = engineer_features(age, avg_glucose)
-
-    # Final feature vector (ORDER MATTERS)
-    X = np.array([[
-        gender_encoded,
-        age,
-        hypertension,
-        heart_disease,
-        avg_glucose,
-        bmi,
-        smoking_encoded,
-        age_sq,
-        glucose_sq,
-        age_glucose
-    ]])
-
-    # Apply scaler (LECTURER FIX)
+    # SCALE FIRST
     X_scaled = scaler.transform(X)
 
-    # Predict
+    # PREDICT
     prediction = model.predict(X_scaled)[0]
     probability = model.predict_proba(X_scaled)[0][1]
 
-    st.write("---")
-    st.markdown("## 📊 Prediction Result")
+    st.markdown("## 📊 Your Result")
 
     if prediction == 1:
-        st.error(
-            f"⚠️ **High Stroke Risk Detected**  \n"
-            f"Estimated Probability: **{probability:.2%}**"
-        )
+        st.error(f"⚠️ High Stroke Risk\n\nProbability: {probability:.2%}")
     else:
-        st.success(
-            f"✅ **Low Stroke Risk Detected**  \n"
-            f"Estimated Probability: **{probability:.2%}**"
-        )
+        st.success(f"✅ Low Stroke Risk\n\nProbability: {probability:.2%}")
 
-# --------------------------------------------------
-# Footer (CORRECTED)
-# --------------------------------------------------
+# -------------------------------------------------
+# AUDIO NARRATION
+# -------------------------------------------------
+def narrate(text):
+    tts = gTTS(text)
+    tts.save("audio.mp3")
+    audio = open("audio.mp3", "rb").read()
+    st.audio(audio)
+
+st.markdown("## 🔊 Listen")
+narrate("This application predicts stroke risk using a trained machine learning model.")
+
+# -------------------------------------------------
+# FOOTER (FIXED)
+# -------------------------------------------------
 st.markdown("""
-<hr>
-<p style="text-align:center;font-size:14px;">
-© 2026 <strong>Precious Oparebea Obinna</strong><br>
-Stroke Risk Assessment Tool
-</p>
+<div class="card" style="text-align:center;">
+<p>© 2026 Stroke Risk Assessment Tool</p>
+<p>Developed by <strong>Precious Oparebea Obinna</strong></p>
+</div>
 """, unsafe_allow_html=True)
+
