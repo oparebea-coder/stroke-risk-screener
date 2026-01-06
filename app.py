@@ -1,4 +1,8 @@
 import streamlit as st
+from pathlib import Path
+from gtts import gTTS
+import time
+import os
 
 # --------------------------------------------------
 # PAGE CONFIG (NOT WIDE)
@@ -9,7 +13,7 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# STYLING (Original Theme)
+# GLOBAL STYLING (Pink / Black / Off-white)
 # --------------------------------------------------
 st.markdown("""
 <style>
@@ -38,6 +42,32 @@ footer {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
+# IMAGE PATHS (MUST MATCH GITHUB)
+# --------------------------------------------------
+BASE_DIR = Path(__file__).parent
+IMAGE_DIR = BASE_DIR / "images"
+
+HERO_IMAGE = IMAGE_DIR / "strokeprediction.png"
+IMAGE_2 = IMAGE_DIR / "image2.png"
+IMAGE_3 = IMAGE_DIR / "image3.png"
+
+# --------------------------------------------------
+# VOICE FUNCTION (SAFE)
+# --------------------------------------------------
+def speak(text):
+    try:
+        filename = f"voice_{int(time.time())}.mp3"
+        tts = gTTS(text=text, lang="en")
+        tts.save(filename)
+
+        with open(filename, "rb") as audio:
+            st.audio(audio.read(), format="audio/mp3")
+
+        os.remove(filename)
+    except Exception:
+        st.info("🔊 Voice narration unavailable.")
+
+# --------------------------------------------------
 # NAVIGATION
 # --------------------------------------------------
 page = st.sidebar.radio(
@@ -61,12 +91,25 @@ Early screening tool for stroke risk awareness
 # HOME
 # --------------------------------------------------
 if page == "Home":
+
+    if HERO_IMAGE.exists():
+        st.image(str(HERO_IMAGE), use_column_width=True)
+
+    colA, colB = st.columns(2)
+    with colA:
+        if IMAGE_2.exists():
+            st.image(str(IMAGE_2), use_column_width=True)
+    with colB:
+        if IMAGE_3.exists():
+            st.image(str(IMAGE_3), use_column_width=True)
+
     st.markdown("""
     <div class="section">
     <h2>About Stroke</h2>
     <p>
-    This tool provides an educational stroke risk screening based on
-    established clinical risk factors. It is not a diagnostic device.
+    A stroke occurs when blood flow to part of the brain is interrupted,
+    preventing oxygen and nutrients from reaching brain tissue.
+    Early detection can save lives.
     </p>
 
     <h3>FAST Warning Signs</h3>
@@ -80,7 +123,7 @@ if page == "Home":
     """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# RISK ASSESSMENT
+# RISK ASSESSMENT (SAFE RULE-BASED)
 # --------------------------------------------------
 elif page == "Risk Assessment":
 
@@ -114,7 +157,19 @@ elif page == "Risk Assessment":
         risk_score = min(risk_score, 100)
         st.session_state["risk"] = risk_score
 
-        st.success("Assessment completed. View results.")
+        message = f"Your estimated stroke risk is {risk_score} percent."
+
+        if risk_score < 30:
+            message += " This indicates a low risk."
+            st.success(message)
+        elif risk_score < 60:
+            message += " This indicates a moderate risk."
+            st.warning(message)
+        else:
+            message += " This indicates a high risk. Please seek medical advice."
+            st.error(message)
+
+        speak(message)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -154,7 +209,7 @@ elif page == "Recommendations":
     <ul>
         <li>Maintain healthy blood pressure and glucose levels</li>
         <li>Exercise regularly</li>
-        <li>Adopt a balanced diet</li>
+        <li>Eat a balanced diet</li>
         <li>Avoid smoking</li>
         <li>Seek routine medical check-ups</li>
     </ul>
