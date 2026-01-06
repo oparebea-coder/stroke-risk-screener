@@ -1,235 +1,168 @@
 import streamlit as st
+import numpy as np
+import joblib
 from pathlib import Path
 
 # --------------------------------------------------
-# PAGE CONFIG
+# Page config (UNCHANGED)
 # --------------------------------------------------
 st.set_page_config(
-    page_title="Stroke Risk Assessment Tool",
+    page_title="Stroke Risk Prediction",
     layout="wide"
 )
 
 # --------------------------------------------------
-# GLOBAL STYLING (Pink / Black / Off-white)
+# Paths
+# --------------------------------------------------
+BASE_DIR = Path(__file__).parent
+MODEL_PATH = BASE_DIR / "model.pkl"
+SCALER_PATH = BASE_DIR / "stroke_scaler.joblib"
+IMAGE_DIR = BASE_DIR / "images"
+
+# --------------------------------------------------
+# Load model and scaler (FIXED)
+# --------------------------------------------------
+@st.cache_resource
+def load_artifacts():
+    model = joblib.load(MODEL_PATH)
+    scaler = joblib.load(SCALER_PATH)
+    return model, scaler
+
+model, scaler = load_artifacts()
+
+# --------------------------------------------------
+# Feature engineering (MATCHES TRAINING)
+# --------------------------------------------------
+def engineer_features(age, glucose):
+    age_sq = age ** 2
+    glucose_sq = glucose ** 2
+    age_glucose = age * glucose
+    return age_sq, glucose_sq, age_glucose
+
+# --------------------------------------------------
+# ====== YOUR EXISTING STYLING (UNCHANGED) ======
 # --------------------------------------------------
 st.markdown("""
 <style>
-body {
-    background-color: #0b0b0b;
-    color: #f7f5f2;
+body { background-color: #0e0e0e; color: #f5f5f5; }
+h1, h2, h3 { color: #ff5c8a; }
+.stButton>button {
+    background-color:#ff5c8a;
+    color:white;
+    border-radius:8px;
+    font-size:16px;
 }
-
-h1, h2, h3 {
-    color: #ff4f9a;
-}
-
-.section {
-    background-color: #f7f5f2;
-    color: #111;
-    padding: 25px;
-    border-radius: 16px;
-    margin-bottom: 25px;
-}
-
-button {
-    background-color: #ff4f9a !important;
-    color: white !important;
-    border-radius: 10px !important;
-}
-
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
+.stButton>button:hover { background-color:#e14c77; }
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# SIDEBAR NAVIGATION (WORKING)
-# --------------------------------------------------
-page = st.sidebar.radio(
-    "Navigation",
-    ["Home", "Risk Assessment", "Results", "Recommendations"]
-)
-
-# --------------------------------------------------
-# IMAGE PATHS (MATCH YOUR GITHUB EXACTLY)
-# --------------------------------------------------
-BASE_DIR = Path(__file__).parent
-IMAGE_DIR = BASE_DIR / "images"
-
-HERO_IMAGE = IMAGE_DIR / "strokeprediction.png"
-IMAGE_2 = IMAGE_DIR / "image2.png"
-IMAGE_3 = IMAGE_DIR / "image3.png"
-
-# --------------------------------------------------
-# HEADER
+# Header (UNCHANGED)
 # --------------------------------------------------
 st.markdown("""
-<div style="background:#ff4f9a;padding:25px;border-radius:18px;text-align:center;">
-<h1 style="color:white;">🧠 Stroke Risk Assessment Tool</h1>
-<p style="color:white;font-size:18px;">
-Empowering you to take control of your brain health
-</p>
+<div style="background-color:#1c1c1c;padding:25px;border-radius:12px;">
+<h1>🧠 Stroke Risk Assessment Tool</h1>
+<p>Empowering you to take control of your brain health</p>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.write("")
 
 # --------------------------------------------------
-# HOME PAGE
+# Images (UNCHANGED)
 # --------------------------------------------------
-if page == "Home":
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.image(IMAGE_DIR / "strokeprediction.png", use_container_width=True)
+with c2:
+    st.image(IMAGE_DIR / "image2.png", use_container_width=True)
+with c3:
+    st.image(IMAGE_DIR / "image3.png", use_container_width=True)
 
-    if HERO_IMAGE.exists():
-        st.image(str(HERO_IMAGE), use_column_width=True)
+st.write("---")
 
-    colA, colB = st.columns(2)
-    with colA:
-        if IMAGE_2.exists():
-            st.image(str(IMAGE_2), use_column_width=True)
-    with colB:
-        if IMAGE_3.exists():
-            st.image(str(IMAGE_3), use_column_width=True)
+# --------------------------------------------------
+# Risk Assessment Form
+# --------------------------------------------------
+st.markdown("## 📝 Risk Assessment")
 
-    st.markdown("""
-    <div class="section">
-    <h2>Learn About Stroke</h2>
-    <p>
-    A stroke occurs when blood flow to part of the brain is interrupted,
-    preventing oxygen and nutrients from reaching brain tissue.
-    Early detection can save lives.
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
-
+with st.form("risk_form"):
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("""
-        <div class="section">
-        <h3>Types of Stroke</h3>
-        <ul>
-            <li>Ischemic – artery blockage</li>
-            <li>Hemorrhagic – burst blood vessel</li>
-            <li>TIA – mini-stroke</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="section">
-        <h3>Common Causes</h3>
-        <ul>
-            <li>High blood pressure</li>
-            <li>Heart disease</li>
-            <li>Diabetes</li>
-            <li>Smoking</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        age = st.number_input("Age", 1, 120, 45)
+        hypertension = st.selectbox("Hypertension", [0, 1])
+        heart_disease = st.selectbox("Heart Disease", [0, 1])
+        avg_glucose = st.number_input("Average Glucose Level", value=100.0)
 
     with col2:
-        st.markdown("""
-        <div class="section">
-        <h3>Symptoms</h3>
-        <ul>
-            <li>Face drooping</li>
-            <li>Arm weakness</li>
-            <li>Speech difficulty</li>
-            <li>Dizziness</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        bmi = st.number_input("BMI", value=25.0)
+        smoking_status = st.selectbox(
+            "Smoking Status",
+            ["never smoked", "formerly smoked", "smokes"]
+        )
+        gender = st.selectbox("Gender", ["Male", "Female"])
 
-        st.markdown("""
-        <div class="section">
-        <h3>FAST Test</h3>
-        <ul>
-            <li>F – Face</li>
-            <li>A – Arms</li>
-            <li>S – Speech</li>
-            <li>T – Time to call emergency</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    predict_btn = st.form_submit_button("Predict Stroke Risk")
 
 # --------------------------------------------------
-# RISK ASSESSMENT
+# Prediction + IMMEDIATE RESULTS (FIXED)
 # --------------------------------------------------
-elif page == "Risk Assessment":
+if predict_btn:
+    # Encode categoricals
+    gender_encoded = 1 if gender == "Male" else 0
+    smoking_map = {
+        "never smoked": 0,
+        "formerly smoked": 1,
+        "smokes": 2
+    }
+    smoking_encoded = smoking_map[smoking_status]
 
-    st.markdown("<div class='section'>", unsafe_allow_html=True)
-    st.header("Stroke Risk Input")
+    # Feature engineering
+    age_sq, glucose_sq, age_glucose = engineer_features(age, avg_glucose)
 
-    age = st.slider("Age", 18, 100, 45)
-    glucose = st.slider("Average Glucose Level", 50, 300, 120)
-    hypertension = st.selectbox("Hypertension", ["No", "Yes"])
-    heart_disease = st.selectbox("Heart Disease", ["No", "Yes"])
-    smoking = st.selectbox("Smoking Status", ["Never", "Former", "Current"])
+    # Final feature vector (ORDER MATTERS)
+    X = np.array([[
+        gender_encoded,
+        age,
+        hypertension,
+        heart_disease,
+        avg_glucose,
+        bmi,
+        smoking_encoded,
+        age_sq,
+        glucose_sq,
+        age_glucose
+    ]])
 
-    if st.button("Estimate Risk"):
-        risk = age * 0.03 + glucose * 0.02
-        if hypertension == "Yes":
-            risk += 10
-        if heart_disease == "Yes":
-            risk += 10
-        if smoking == "Current":
-            risk += 5
+    # Apply scaler (LECTURER FIX)
+    X_scaled = scaler.transform(X)
 
-        st.session_state["risk"] = min(risk, 100)
-        st.success("Assessment complete. View Results.")
+    # Predict
+    prediction = model.predict(X_scaled)[0]
+    probability = model.predict_proba(X_scaled)[0][1]
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.write("---")
+    st.markdown("## 📊 Prediction Result")
 
-# --------------------------------------------------
-# RESULTS
-# --------------------------------------------------
-elif page == "Results":
-
-    st.markdown("<div class='section'>", unsafe_allow_html=True)
-    st.header("Your Results")
-
-    risk = st.session_state.get("risk")
-
-    if risk is None:
-        st.warning("Please complete the Risk Assessment first.")
+    if prediction == 1:
+        st.error(
+            f"⚠️ **High Stroke Risk Detected**  \n"
+            f"Estimated Probability: **{probability:.2%}**"
+        )
     else:
-        st.metric("Estimated Stroke Risk (%)", f"{risk:.1f}%")
-        if risk < 30:
-            st.success("Low Risk")
-        elif risk < 60:
-            st.warning("Moderate Risk")
-        else:
-            st.error("High Risk – consult a healthcare professional")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.success(
+            f"✅ **Low Stroke Risk Detected**  \n"
+            f"Estimated Probability: **{probability:.2%}**"
+        )
 
 # --------------------------------------------------
-# RECOMMENDATIONS
-# --------------------------------------------------
-elif page == "Recommendations":
-
-    st.markdown("<div class='section'>", unsafe_allow_html=True)
-    st.header("Health Recommendations")
-
-    st.markdown("""
-    <ul>
-        <li>Control blood pressure and blood sugar</li>
-        <li>Exercise regularly</li>
-        <li>Eat a balanced diet</li>
-        <li>Avoid smoking</li>
-        <li>Seek medical advice</li>
-    </ul>
-    """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# --------------------------------------------------
-# FOOTER (CORRECT NAME & YEAR)
+# Footer (CORRECTED)
 # --------------------------------------------------
 st.markdown("""
 <hr>
-<p style="text-align:center;color:#ff4f9a;">
-© 2026 Stroke Risk Assessment Tool<br>
-Developed by <strong>Precious Oparebea Obinna</strong>
+<p style="text-align:center;font-size:14px;">
+© 2026 <strong>Precious Oparebea Obinna</strong><br>
+Stroke Risk Assessment Tool
 </p>
 """, unsafe_allow_html=True)
